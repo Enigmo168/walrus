@@ -1,4 +1,5 @@
 from pysui import SuiConfig, AsyncClient
+from pysui.abstracts import SignatureScheme
 from pysui.sui.sui_types import SuiString
 from pysui.sui.sui_txn.async_transaction import SuiTransactionAsync
 from pysui.sui.sui_types.scalars import SuiTxBytes
@@ -16,9 +17,17 @@ class SuiUtils:
         elif key:
             self.mnemonic = ""
             self.key = key
+            if self.key.startswith("0x"):
+                key_format = {
+                    'wallet_key': self.key,
+                    'key_scheme': SignatureScheme.ED25519
+                }
+            else:
+                key_format = self.key
+
             self.config = SuiConfig.user_config(
                 rpc_url=rpc_url,
-                prv_keys=[key]
+                prv_keys=[key_format]
             )
         else:
             self.config = SuiConfig.user_config(rpc_url=rpc_url)
