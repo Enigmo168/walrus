@@ -1,5 +1,5 @@
 import asyncio
-from random import randint, sample
+from random import randint, sample, shuffle
 
 import inquirer
 from loguru import logger
@@ -7,7 +7,7 @@ from tabulate import tabulate
 
 from core.walrus import Walrus, convert_balance
 from core.utils.db import add_users, update_users, delete_users, get_users, get_pool_addresses, update_stake, update_mint
-from config import DELAY, MAX_VALIDATORS, MAX_CONCURRENT_TASKS
+from config import DELAY, MAX_VALIDATORS, MAX_CONCURRENT_TASKS, RANGE_OF_ACCOUNTS
 
 
 async def random_sleep(user_id, address):
@@ -114,7 +114,17 @@ async def main():
     match action:
         case 'Выполнение задач':
             users = get_users()
-            logger.info(f'Аккаунтов в БД: "{len(users)}". Выполнение...')
+
+            user_from = RANGE_OF_ACCOUNTS[0]
+            user_to = len(users)
+
+            if len(RANGE_OF_ACCOUNTS) == 2:
+                user_to = RANGE_OF_ACCOUNTS[1]
+
+            logger.info(f'Аккаунтов в БД: "{len(users)}". Диапазон аккаунтов: "{user_from}-{user_to}". Выполнение...')
+
+            users = users[user_from - 1:user_to]
+            shuffle(users)
 
             semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 

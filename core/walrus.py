@@ -6,6 +6,7 @@ from pysui.sui.sui_types import ObjectID, SuiString, SuiAddress
 from pysui.sui.sui_types.bcs import Argument
 from fake_useragent import UserAgent
 from loguru import logger
+from random import randint
 
 from core.utils.sui_utils import SuiUtils
 from config import WAL_AMOUNT_FOR_STAKE
@@ -110,7 +111,8 @@ class Walrus:
             tx = SuiTransactionAsync(client=self.sui_utils.client)
 
             all_coins = await self.sui_utils.get_sui_coin_objects(coin_type='0x2::sui::SUI')
-            amount = int(int(all_coins[0].balance) - (int(all_coins[0].balance) * 0.05))
+            gas = float('0.0' + str(randint(40, 100)))
+            amount = int(int(all_coins[0].balance) - (int(all_coins[0].balance) * gas))
             await tx.split_coin(coin=Argument('GasCoin'), amounts=[amount])
 
             move_call_result = await tx.move_call(
