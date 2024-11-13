@@ -6,7 +6,7 @@ from pysui.sui.sui_types import ObjectID, SuiString, SuiAddress
 from pysui.sui.sui_types.bcs import Argument
 from fake_useragent import UserAgent
 from loguru import logger
-from random import randint
+from random import uniform
 
 from core.utils.sui_utils import SuiUtils
 from config import WAL_AMOUNT_FOR_STAKE
@@ -55,8 +55,9 @@ class Walrus:
                 code_202 = True
             elif response.status == 429:
                 code_429 = True
+            await asyncio.sleep(2.5)
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(2)
         sui_balance = await self.sui_utils.get_balance(coin_type='0x2::sui::SUI')
         return (True, sui_balance) if code_202 and code_429 else (False, sui_balance)
         # return True if (await response.json()).get('error') == 'null' else False
@@ -93,7 +94,8 @@ class Walrus:
             # return (await response.json()).get('result').get('totalBalance')
 
         except Exception as e:
-            logger.error(f'Error: {e}')
+            # logger.error(f'Error: {e}')
+            return False
 
     async def call_exchange_all_for_wal(self):
         try:
@@ -111,7 +113,7 @@ class Walrus:
             tx = SuiTransactionAsync(client=self.sui_utils.client)
 
             all_coins = await self.sui_utils.get_sui_coin_objects(coin_type='0x2::sui::SUI')
-            gas = float('0.0' + str(randint(40, 100)))
+            gas = round(uniform(0.04, 0.1), 2)
             amount = int(int(all_coins[0].balance) - (int(all_coins[0].balance) * gas))
             await tx.split_coin(coin=Argument('GasCoin'), amounts=[amount])
 
@@ -136,11 +138,12 @@ class Walrus:
             return status, err_msg, wal_balance
 
         except Exception as e:
-            logger.error(f'Error: {e}')
+            # logger.error(f'Error: {e}')
+            return False, e, None
 
     async def call_stake_with_pool(self, pool_address: str):
         try:
-            amount = int(f'{str(WAL_AMOUNT_FOR_STAKE)}_000_000_000')
+            amount = int(str(round(uniform(WAL_AMOUNT_FOR_STAKE[0], WAL_AMOUNT_FOR_STAKE[1]), 9)).replace('.', ''))
 
             tx = SuiTransactionAsync(client=self.sui_utils.client)
 
@@ -151,7 +154,7 @@ class Walrus:
             try:
                 sui_object_id = coin_type_balance.result_data.to_dict()['data'][0]['coinObjectId']
             except IndexError:
-                return False, 'Недостаточный баланс WAL', 0
+                return False, 'Недостаточный баланс WAL', None, 0
 
             await tx.split_coin(
                 coin=ObjectID(sui_object_id),
@@ -175,10 +178,11 @@ class Walrus:
             status, err_msg = await self.sui_utils.send_tx(tx)
             await asyncio.sleep(5)
             wal_balance = await self.sui_utils.get_balance(coin_type='0x9f992cc2430a1f442ca7a5ca7638169f5d5c00e0ebc3977a65e9ac6e497fe5ef::wal::WAL')
-            return status, err_msg, wal_balance
+            return status, err_msg, wal_balance, amount
 
         except Exception as e:
-            logger.error(f'Error: {e}')
+        #     logger.error(f'Error: {e}')
+            return False, e, None, 0
 
     async def connect_flatland_walrus_site(self):
         url = "https://fullnode.testnet.sui.io/"
@@ -224,7 +228,8 @@ class Walrus:
             return status, err_msg
 
         except Exception as e:
-            logger.error(f'Error: {e}')
+            # logger.error(f'Error: {e}')
+            return False, e
 
     async def blob_upload(self):
         try:
@@ -237,8 +242,10 @@ class Walrus:
         await self.session.close()
 
 
-def convert_balance(token_amount: int):
-    if str(token_amount)[:-9]:
+def convert_balance(token_amount: int | None):
+    if token_amount is None:
+        return '-'
+    elif str(token_amount)[:-9]:
         return f'{str(token_amount)[:-9]},{str(token_amount)[-9:-7]}'
     else:
-        return f'0,{str(token_amount)[-9:-7]}'
+        return '0'

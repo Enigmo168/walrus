@@ -97,11 +97,11 @@ def get_pool_addresses() -> list[tuple]:
     return c.execute('SELECT * FROM pool_addresses').fetchall()
 
 
-def update_stake(user_id: int, pool_address: str):
+def update_stake(user_id: int, pool_address: str, amount):
     pool_address_id = c.execute('SELECT id FROM pool_addresses WHERE address = ?', (pool_address,)).fetchone()[0]
     stake = c.execute('SELECT * FROM stake WHERE user_id = ? AND pool_address_id = ? ORDER BY stake_amount ASC LIMIT 1', (user_id, pool_address_id)).fetchone()
     if stake is None:
-        c.execute('INSERT INTO stake (user_id, pool_address_id, stake_amount) VALUES (?, ?, ?)', (user_id, pool_address_id, WAL_AMOUNT_FOR_STAKE))
+        c.execute('INSERT INTO stake (user_id, pool_address_id, stake_amount) VALUES (?, ?, ?)', (user_id, pool_address_id, amount))
     else:
         c.execute('UPDATE stake SET stake_amount = stake_amount + 1 WHERE user_id = ? AND pool_address_id = ?', (user_id, pool_address_id))
     db.commit()

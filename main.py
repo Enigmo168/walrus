@@ -24,10 +24,14 @@ async def user_tasks(user_data):
     galxe = user_data[4]
 
     logger.info(f'{user_id} | Начал работу')
+    walrus = None
+    address = None
 
     try:
         walrus = Walrus(private_key, proxy)
         address = walrus.sui_utils.config.active_address
+
+        await random_sleep(user_id, address)
 
         get_test_sui_res, sui_balance = await walrus.get_test_sui()
         if get_test_sui_res:
@@ -57,24 +61,24 @@ async def user_tasks(user_data):
         pool_addresses = get_pool_addresses()
         random_pools = sample(pool_addresses, min(MAX_VALIDATORS, len(pool_addresses)))
         for pool_address in random_pools:
-            result_stake, err_msg, wal_balance = await walrus.call_stake_with_pool(pool_address[1])
+            result_stake, err_msg, wal_balance, wal_staked = await walrus.call_stake_with_pool(pool_address[1])
             if result_stake:
-                logger.success(f'{user_id} | {address} | Застейкал WAL в {pool_address[1]}. Баланс WAL = {convert_balance(wal_balance)}')
-                update_stake(user_id, pool_address[1])
+                logger.success(f'{user_id} | {address} | Застейкал {convert_balance(wal_staked)} WAL в {pool_address[1]}. Баланс WAL = {convert_balance(wal_balance)}')
+                update_stake(user_id, pool_address[1], convert_balance(wal_staked))
                 await random_sleep(user_id, address)
             else:
-                logger.error(f'{user_id} | {address} | Не удалось застейкать WAL в {pool_address[1]}. Баланс WAL = {convert_balance(wal_balance)}. Ошибка: {err_msg}')
+                logger.error(f'{user_id} | {address} | Не удалось застейкать {convert_balance(wal_staked)} WAL в {pool_address[1]}. Баланс WAL = {convert_balance(wal_balance)}. Ошибка: {err_msg}')
                 break
 
-        if await walrus.connect_flatland_walrus_site():
-            logger.success(f'{user_id} | {address} | Подключился к Flatland')
-        else:
-            logger.error(f'{user_id} | {address} | Не удалось подключиться к Flatland')
-            return
-
-        await random_sleep(user_id, address)
-
         if not mint:
+            if await walrus.connect_flatland_walrus_site():
+                logger.success(f'{user_id} | {address} | Подключился к Flatland')
+            else:
+                logger.error(f'{user_id} | {address} | Не удалось подключиться к Flatland')
+                return
+
+            await random_sleep(user_id, address)
+
             result_mint, err_msg = await walrus.call_mint_function()
             if result_mint:
                 logger.success(f'{user_id} | {address} | Cминтил NFT')
@@ -89,7 +93,9 @@ async def user_tasks(user_data):
         logger.info(f'{user_id} | {address} | Закончил работу')
 
     except Exception as e:
-        logger.error(f'{user_id} | Неожиданная ошибка: {e}')
+        if walrus:
+            await walrus.logout()
+        logger.error(f'{user_id} | {address} | Неожиданная ошибка: {e}')
 
 
 async def main():
