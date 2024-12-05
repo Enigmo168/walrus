@@ -7,7 +7,7 @@ from tabulate import tabulate
 
 from core.walrus import Walrus, convert_balance
 from core.utils.db import add_users, update_users, delete_users, get_users, get_pool_addresses, update_stake, update_mint
-from config import DELAY, MAX_VALIDATORS, MAX_CONCURRENT_TASKS, RANGE_OF_ACCOUNTS
+from config import DELAY, MAX_VALIDATORS, MAX_CONCURRENT_TASKS, RANGE_OF_ACCOUNTS, CHANCE_FOR_MINT
 
 
 async def random_sleep(user_id, address):
@@ -32,6 +32,9 @@ async def user_tasks(user_data):
         address = walrus.sui_utils.config.active_address
 
         await random_sleep(user_id, address)
+        # seconds = randint(600, 1000)
+        # logger.success(f'{user_id} | {address} | Спит {seconds} секунд перед следующей задачей')
+        # await asyncio.sleep(seconds)
 
         get_test_sui_res, sui_balance = await walrus.get_test_sui()
         if get_test_sui_res:
@@ -70,23 +73,26 @@ async def user_tasks(user_data):
                 logger.error(f'{user_id} | {address} | Не удалось застейкать {convert_balance(wal_staked)} WAL в {pool_address[1]}. Баланс WAL = {convert_balance(wal_balance)}. Ошибка: {err_msg}')
                 break
 
-        if not mint:
-            if await walrus.connect_flatland_walrus_site():
-                logger.success(f'{user_id} | {address} | Подключился к Flatland')
-            else:
-                logger.error(f'{user_id} | {address} | Не удалось подключиться к Flatland')
-                return
+        # if not mint:
+        if CHANCE_FOR_MINT:
+            num = randint(0, 100)
+            if num <= CHANCE_FOR_MINT:
+                if await walrus.connect_flatland_walrus_site():
+                    logger.success(f'{user_id} | {address} | Подключился к Flatland')
+                else:
+                    logger.error(f'{user_id} | {address} | Не удалось подключиться к Flatland')
+                    return
 
-            await random_sleep(user_id, address)
+                await random_sleep(user_id, address)
 
-            result_mint, err_msg = await walrus.call_mint_function()
-            if result_mint:
-                logger.success(f'{user_id} | {address} | Cминтил NFT')
-                update_mint(user_id)
-            else:
-                logger.error(f'{user_id} | {address} | Не удалось cминтить NFT. Ошибка: {err_msg}')
-        else:
-            logger.info(f'{user_id} | {address} | Mint NFT уже был сделан')
+                result_mint, err_msg = await walrus.call_mint_function()
+                if result_mint:
+                    logger.success(f'{user_id} | {address} | Cминтил NFT')
+                    update_mint(user_id, mint+1)
+                else:
+                    logger.error(f'{user_id} | {address} | Не удалось cминтить NFT. Ошибка: {err_msg}')
+        # else:
+        #     logger.info(f'{user_id} | {address} | Mint NFT уже был сделан')
 
         await walrus.logout()
 

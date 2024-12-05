@@ -107,7 +107,7 @@ def update_stake(user_id: int, pool_address: str, amount):
     db.commit()
 
 
-def update_mint(user_id: int):
-    c.execute('UPDATE users SET mint = 1 WHERE id = ?', (user_id,))
+def update_mint(user_id: int, amount: int):
+    c.execute('UPDATE users SET mint = ? WHERE id = ?', (amount, user_id))
     db.commit()
 
